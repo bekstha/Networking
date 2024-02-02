@@ -47,6 +47,7 @@ fun MyApp(content: @Composable () -> Unit) {
                 .fillMaxSize()
                 .padding(16.dp),
         ) {
+            //display normal text
             Text(
                 text = "This is a special test file",
                 textAlign = TextAlign.Center
@@ -71,7 +72,7 @@ fun ImageLoader(url: String) {
         }
     }
 
-    // Display the downloaded image
+    // displaying the downloaded image
     imageBitmap?.let {
         Image(
             bitmap = it,
@@ -81,6 +82,7 @@ fun ImageLoader(url: String) {
     }
 }
 
+// function to download image via URL
 private suspend fun downloadImage(url: String): ImageBitmap {
     val inputStream: InputStream = URL(url).openStream()
     val byteArray = withContext(Dispatchers.IO) {
