@@ -1,93 +1,99 @@
 package fi.metropolia.bibeks.networking
 
-import android.graphics.BitmapFactory
+import android.content.Context
+import android.net.ConnectivityManager
 import android.os.Bundle
-import android.util.Log
+import android.os.Handler
+import android.os.Looper
+import android.os.Message
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.InputStream
-import java.net.URL
 
 class MainActivity : ComponentActivity() {
+    var fetchedData = ""
+    var isLoading by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContent {
-            MyApp {
-                ImageLoader("https://users.metropolia.fi/~jarkkov/folderimage.jpg")
+            if (isNetworkAvailable(this)) {
+                val runnable = Connection(handler)
+                val thread = Thread(runnable)
+                if (!isLoading) {
+                    thread.start()
+                    isLoading = true
+                }
+            }
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                DisplayText(
+                    fetchedData = fetchedData,
+                    onReadFileClick = {
+                        val runnable = Connection(handler)
+                        val thread = Thread(runnable)
+                        thread.start()
+                        isLoading = true
+                    }
+                )
             }
         }
     }
+
+    private val handler: Handler = object :
+        Handler(Looper.getMainLooper()) {
+        override fun handleMessage(inputMessage: Message) {
+            if (inputMessage.what == 0) {
+                fetchedData = inputMessage.obj.toString()
+                isLoading = false
+            }
+        }
+    }
+
+    private fun isNetworkAvailable(context: Context): Boolean =
+        (context.getSystemService(Context.CONNECTIVITY_SERVICE) as
+                ConnectivityManager).isDefaultNetworkActive
 }
 
 @Composable
-fun MyApp(content: @Composable () -> Unit) {
-    MaterialTheme {
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
+fun DisplayText(fetchedData: String, onReadFileClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = fetchedData)
+        Button(
+            onClick = { onReadFileClick() },
+            modifier = Modifier.padding(0.dp)
+                .offset(y = (-5).dp)
         ) {
-            //display normal text
-            Text(
-                text = "This is a special test file",
-                textAlign = TextAlign.Center
-            )
-            content()
+            Text(text = "Read File")
         }
     }
 }
 
+@Preview(showBackground = true)
 @Composable
-fun ImageLoader(url: String) {
-    var imageBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+fun DefaultPreview() {
 
-    LaunchedEffect(url) {
-        try {
-            val bitmap: ImageBitmap = withContext(Dispatchers.IO) {
-                downloadImage(url)
-            }
-            imageBitmap = bitmap
-        } catch (e: Exception) {
-            Log.e("ImageLoader", "Error loading image: $e")
-        }
-    }
-
-    // displaying the downloaded image
-    imageBitmap?.let {
-        Image(
-            bitmap = it,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize()
-        )
-    }
-}
-
-// function to download image via URL
-private suspend fun downloadImage(url: String): ImageBitmap {
-    val inputStream: InputStream = URL(url).openStream()
-    val byteArray = withContext(Dispatchers.IO) {
-        inputStream.readBytes()
-    }
-    val bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
-    return bitmap.asImageBitmap()
 }
